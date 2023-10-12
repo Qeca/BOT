@@ -15,11 +15,18 @@ def get_company_kb(company: list) -> ReplyKeyboardMarkup:
     kb.add(KeyboardButton(text="Зарегистрировать новую компанию"))
     return kb
 
+def get_drivers_kb(company: list) -> ReplyKeyboardMarkup:
+    kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    for i in company:
+        kb.add(KeyboardButton(text=f'{i}'))
+    return kb
+
 
 def lk_manager_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     kb.add(KeyboardButton("Управление водителями"), KeyboardButton("Управление путями"))
     kb.add(KeyboardButton("Управление компанией"), KeyboardButton("Управление машинами"))
+    kb.add(KeyboardButton("Обратная связь"))
     return kb
 
 
