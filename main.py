@@ -4,7 +4,8 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
     ReplyKeyboardMarkup, InputFile, WebAppInfo
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from keyboards import get_start_kb, get_company_kb, lk_manager_kb, inline_driver_management_kb, get_drivers_kb
+from keyboards import get_start_kb, get_company_kb, lk_manager_kb, inline_driver_management_kb, get_drivers_kb, \
+    inline_company_management_kb
 from aiogram.dispatcher import FSMContext
 
 storage = MemoryStorage()
@@ -32,6 +33,7 @@ dict_company = {'name': ["Новатэк", "ПКЛПО", "Грузы из Лис
 
 class ProfileMenuGroup(StatesGroup):
     menu_state = State()
+    menu_back = State()
 
 
 class ProfileDriverManagementGroup(StatesGroup):
@@ -59,6 +61,7 @@ class ProfileManagerStatesGroup(StatesGroup):
 
 class ProfileCompanyStatesGroup(StatesGroup):
     company_reg_name = State()
+    change_company = State()
 
 
 # @dp.message_handler(lambda message: message.text == "Зарегистрировать новую компанию")
@@ -66,6 +69,72 @@ class ProfileCompanyStatesGroup(StatesGroup):
 #     await bot.send_message(chat_id=message.from_user.id,
 #                            text='Введите название компании')
 #     await ProfileCompanyStatesGroup.company_reg_name.set()
+
+@dp.message_handler(lambda message: message.text == "Управление компанией", state=ProfileMenuGroup.menu_state)
+async def company_management(message: types.Message, state: FSMContext):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Твоя компания: (тут должна быть компания менеджера)",
+                           reply_markup=inline_company_management_kb())
+    await state.finish()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "change_company")
+async def change_company(callback: types.CallbackQuery):
+    await callback.message.delete()
+    await callback.message.answer(text="Выберите нужную команию",
+                                  reply_markup=get_drivers_kb(dict_company["name"]))
+    await ProfileCompanyStatesGroup.change_company.set()
+
+
+@dp.message_handler(state=ProfileCompanyStatesGroup.change_company)
+async def change_company_last(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["company_id"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text='Вы успешно выбрали компанию')
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Твоя компания: (тут должна быть компания менеджера)",
+                           reply_markup=inline_company_management_kb())
+    await state.finish()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "reg_company")
+async def reg_company(callback: types.CallbackQuery):
+    await callback.message.edit_text(text="Введите название компании")
+    await ProfileCompanyStatesGroup.company_reg_name.set()
+
+
+@dp.message_handler(state=ProfileCompanyStatesGroup.company_reg_name)
+async def reg_company_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["company_name"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text='Вы успешно зарегестрировали компанию')
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Твоя компания: (тут должна быть компания менеджера)",
+                           reply_markup=inline_company_management_kb())
+    await state.finish()
+
+
+@dp.message_handler(lambda message: message.text == 'Обратная связь', state=ProfileMenuGroup.menu_state)
+async def feedback(message: types.Message) -> None:
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"""CEO проекта - @macgoodmonsta \nРазработчик - @qecal \nРазработчик - @Qw_wi \nРазработчик - @smnv_vs \nРазработчик - @ml_nastya""",
+                           reply_markup=ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
+                               KeyboardButton("Google Forms", web_app=WebAppInfo(
+                                   url='https://docs.google.com/forms/d/16nMg62qwL3OxZawuP54ZWljUUTwJ8Pq8L23AS8SxzGc/edit')),
+                               KeyboardButton("Меню")
+                           ))
+    await ProfileMenuGroup.menu_back.set()
+
+
+@dp.message_handler(lambda message: message.text == "Меню", state=ProfileMenuGroup.menu_back)
+async def menu_back(message: types.Message, state: FSMContext):
+    await state.finish()
+    await bot.send_message(chat_id=message.from_user.id
+                           , text="Добро пожаловать в личный кабинет!",
+                           reply_markup=lk_manager_kb())
+    await ProfileMenuGroup.menu_state.set()
 
 
 @dp.message_handler(commands=['start'])
@@ -127,18 +196,6 @@ async def driver_management(message: types.Message, state: FSMContext):
         await ProfileDriverManagementGroup.driver.set()
 
 
-@dp.message_handler(lambda message: message.text in 'Обратная связь')
-async def feedback(message: types.Message) -> None:
-    if message.text == "Обратная связь":
-        await bot.send_message(chat_id=message.from_user.id,
-                               text="Google Forms ",
-                               reply_markup=ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
-                                   KeyboardButton("Google Forms", web_app=WebAppInfo(
-                                       url='https://docs.google.com/forms/d/16nMg62qwL3OxZawuP54ZWljUUTwJ8Pq8L23AS8SxzGc/edit')),
-                                   KeyboardButton("Меню")
-                               ))
-
-
 @dp.message_handler(state=ProfileDriverManagementGroup.add_driver_company)
 async def add_company_driver(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -147,12 +204,12 @@ async def add_company_driver(message: types.Message, state: FSMContext):
     c_id = dict_managers["company_id"][dict_managers["lastname"].index(f'{dict_login_manager["lastname"]}')]
     await bot.send_message(chat_id=message.from_user.id,
                            text="Ты успешно зарегистрировал водителя")
-    data = f"Все водители в компании:\n"
+    datas = f"Все водители в компании:\n"
     for i in range(len(dict_drivers["lastname"])):
         if dict_drivers['company_id'][i] == c_id:
-            data += f"{dict_drivers['firstname'][i]} {dict_drivers['lastname'][i]}\n"
+            datas += f"{dict_drivers['firstname'][i]} {dict_drivers['lastname'][i]}\n"
     await bot.send_message(chat_id=message.from_user.id,
-                           text=data,
+                           text=datas,
                            reply_markup=inline_driver_management_kb())
     await state.finish()
     await ProfileDriverManagementGroup.driver.set()
@@ -168,10 +225,23 @@ async def link_car_to_driver(callback: types.CallbackQuery, state: FSMContext):
             k += f'{dict_drivers["firstname"][i]} {dict_drivers["lastname"][i]}\n'
     await callback.message.edit_text(text=k,
                                      reply_markup=inline_driver_management_kb())
+    await state.finish()
+    await ProfileDriverManagementGroup.driver.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back",
+                           state=ProfileDriverManagementGroup.driver)
+async def back(callback: types.CallbackQuery, state: FSMContext):
+    await state.finish()
+    await callback.message.delete()
+    await callback.message.answer(text="Добро пожаловать в личный кабинет!",
+                                  reply_markup=lk_manager_kb())
+    await ProfileMenuGroup.menu_state.set()
+
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == 'link_car_to_driver',
                            state=ProfileDriverManagementGroup.driver)
-async def link_car_to_driver(callback: types.CallbackQuery, state: FSMContext):
+async def link_car_to_driver_vehicle(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text('Переходим к привязке машин к водителям')
     await bot.send_message(chat_id=callback.message.chat.id,
                            text="Вот список машин",
@@ -325,6 +395,7 @@ async def state_manager_req_surname(message: types.Message, state: FSMContext):
     await bot.send_message(chat_id=message.from_user.id,
                            text="Добро пожаловать в личный кабинет!",
                            reply_markup=lk_manager_kb())
+    await ProfileMenuGroup.menu_state.set()
     # if len(list_company) == 0:
     #     await bot.send_message(chat_id=message.from_user.id, text="Ни одной компании ещё не зарегистрировано",
     #                            reply_markup=get_company_kb(company=list_company))
