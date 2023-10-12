@@ -45,4 +45,13 @@ def inline_company_management_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(row_width=3)
     kb.add(InlineKeyboardButton("Зарегистрировать компанию", callback_data='reg_company'),
            InlineKeyboardButton(text="Сменить компанию", callback_data="change_company"))
+    kb.add(InlineKeyboardButton(text="Назад в меню", callback_data="back_w"))
+    return kb
+
+
+def inline_vehicle_control_kb() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(row_width=3)
+    kb.add(InlineKeyboardButton("Добавить машину", callback_data='add_vehicle'),
+           InlineKeyboardButton(text="Удалить машину", callback_data="del_vehicle"))
+    kb.add(InlineKeyboardButton(text="Назад", callback_data='back'))
     return kb

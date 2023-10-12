@@ -5,8 +5,10 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from keyboards import get_start_kb, get_company_kb, lk_manager_kb, inline_driver_management_kb, get_drivers_kb, \
-    inline_company_management_kb
+    inline_company_management_kb, inline_vehicle_control_kb
 from aiogram.dispatcher import FSMContext
+from model.Manager import Manager
+from repository import CompanyRepository, UserRepository
 
 storage = MemoryStorage()
 
@@ -29,6 +31,10 @@ dict_login_manager = {}
 
 dict_company = {'name': ["Новатэк", "ПКЛПО", "Грузы из Лиссабона", "Энергия"],
                 "company_id": [1, 2, 3, 4]}
+dict_vehicle = {'name': ['мерс', 'бэха'],
+                'state': ['Занята', 'не занята'],
+                'mark': ['12', '133'],
+                "model": ['11', '22']}
 
 
 class ProfileMenuGroup(StatesGroup):
@@ -62,13 +68,18 @@ class ProfileManagerStatesGroup(StatesGroup):
 class ProfileCompanyStatesGroup(StatesGroup):
     company_reg_name = State()
     change_company = State()
+    company = State()
 
 
-# @dp.message_handler(lambda message: message.text == "Зарегистрировать новую компанию")
-# async def reg_company(message: types.Message) -> None:
-#     await bot.send_message(chat_id=message.from_user.id,
-#                            text='Введите название компании')
-#     await ProfileCompanyStatesGroup.company_reg_name.set()
+class ProfileVehicleControlStatesGroup(StatesGroup):
+    vehicle = State()
+    add_vehicle_gos = State()
+    add_vehicle_mark = State()
+    add_vehicle_model = State()
+    del_vehicle = State()
+    link_veh = State()
+    back_veh = State()
+
 
 @dp.message_handler(lambda message: message.text == "Управление компанией", state=ProfileMenuGroup.menu_state)
 async def company_management(message: types.Message, state: FSMContext):
@@ -76,9 +87,108 @@ async def company_management(message: types.Message, state: FSMContext):
                            text=f"Твоя компания: (тут должна быть компания менеджера)",
                            reply_markup=inline_company_management_kb())
     await state.finish()
+    await ProfileCompanyStatesGroup.company.set()
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "change_company")
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back_w",
+                           state=ProfileCompanyStatesGroup.company)
+async def back_w(callback: types.CallbackQuery, state: FSMContext):
+    await state.finish()
+    await callback.message.delete()
+    await callback.message.answer(text="Добро пожаловать в личный кабинет!",
+                                  reply_markup=lk_manager_kb())
+    await ProfileMenuGroup.menu_state.set()
+
+
+@dp.message_handler(lambda message: message.text == "Управление машинами", state=ProfileMenuGroup.menu_state)
+async def vehicle_control(message: types.Message, state: FSMContext):
+    k = f'Все машины:\n'
+    for i in range(len(dict_vehicle['name'])):
+        k += f'{dict_vehicle["name"][i]} : {dict_vehicle["state"][i]}\n'
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=k,
+                           reply_markup=inline_vehicle_control_kb())
+    await state.finish()
+    await ProfileVehicleControlStatesGroup.vehicle.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back",
+                           state=ProfileVehicleControlStatesGroup.vehicle)
+async def back(callback: types.CallbackQuery, state: FSMContext):
+    await state.finish()
+    await callback.message.delete()
+    await callback.message.answer(text="Добро пожаловать в личный кабинет!",
+                                  reply_markup=lk_manager_kb())
+    await ProfileMenuGroup.menu_state.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "del_vehicle",
+                           state=ProfileVehicleControlStatesGroup.vehicle)
+async def veh_add(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Введите гос номер машины")
+    await ProfileVehicleControlStatesGroup.del_vehicle.set()
+
+
+@dp.message_handler(state=ProfileVehicleControlStatesGroup.del_vehicle)
+async def veh_add_gos(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['del_number'] = message.text
+    # тут удаление
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Вы успешно удалили автомобиль")
+    k = f'Все машины:\n'
+    for i in range(len(dict_vehicle['name'])):
+        k += f'{dict_vehicle["name"][i]} : {dict_vehicle["state"][i]}\n'
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=k,
+                           reply_markup=inline_vehicle_control_kb())
+    await state.finish()
+    await ProfileVehicleControlStatesGroup.vehicle.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "add_vehicle",
+                           state=ProfileVehicleControlStatesGroup.vehicle)
+async def veh_add(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Введите гос номер машины")
+    await ProfileVehicleControlStatesGroup.add_vehicle_gos.set()
+
+
+@dp.message_handler(state=ProfileVehicleControlStatesGroup.add_vehicle_gos)
+async def veh_add_gos(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['transportNumber'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите марку автомобиля")
+    await ProfileVehicleControlStatesGroup.add_vehicle_mark.set()
+
+
+@dp.message_handler(state=ProfileVehicleControlStatesGroup.add_vehicle_mark)
+async def veh_add_gos(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['mark'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите модель автомобиля")
+    await ProfileVehicleControlStatesGroup.add_vehicle_model.set()
+
+
+@dp.message_handler(state=ProfileVehicleControlStatesGroup.add_vehicle_model)
+async def veh_add_gos(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['model'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Вы успешно зарегестрировали автомобиль")
+    k = f'Все машины:\n'
+    for i in range(len(dict_vehicle['name'])):
+        k += f'{dict_vehicle["name"][i]} : {dict_vehicle["state"][i]}\n'
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=k,
+                           reply_markup=inline_vehicle_control_kb())
+    await state.finish()
+    await ProfileVehicleControlStatesGroup.vehicle.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "change_company",
+                           state=ProfileCompanyStatesGroup.company)
 async def change_company(callback: types.CallbackQuery):
     await callback.message.delete()
     await callback.message.answer(text="Выберите нужную команию",
@@ -96,9 +206,11 @@ async def change_company_last(message: types.Message, state: FSMContext):
                            text=f"Твоя компания: (тут должна быть компания менеджера)",
                            reply_markup=inline_company_management_kb())
     await state.finish()
+    await ProfileCompanyStatesGroup.company.set()
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "reg_company")
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "reg_company",
+                           state=ProfileCompanyStatesGroup.company)
 async def reg_company(callback: types.CallbackQuery):
     await callback.message.edit_text(text="Введите название компании")
     await ProfileCompanyStatesGroup.company_reg_name.set()
@@ -114,6 +226,7 @@ async def reg_company_name(message: types.Message, state: FSMContext):
                            text=f"Твоя компания: (тут должна быть компания менеджера)",
                            reply_markup=inline_company_management_kb())
     await state.finish()
+    await ProfileCompanyStatesGroup.company.set()
 
 
 @dp.message_handler(lambda message: message.text == 'Обратная связь', state=ProfileMenuGroup.menu_state)
@@ -185,11 +298,12 @@ async def driver_management(message: types.Message, state: FSMContext):
     await state.finish()
     if message.text == "Управление водителями":
         await bot.send_message(chat_id=message.from_user.id, text="Переходим к управлению водителями")
-        c_id = dict_managers["company_id"][dict_managers["lastname"].index(f'{dict_login_manager["lastname"]}')]
+        drivers = CompanyRepository.getDriversByCompany(companyId="5123")
+
         data = f"Все водители в компании:\n"
-        for i in range(len(dict_drivers["lastname"])):
-            if dict_drivers['company_id'][i] == c_id:
-                data += f"{dict_drivers['firstname'][i]} {dict_drivers['lastname'][i]}\n"
+        for driver in drivers:
+            data += f"{driver.id} {driver.lastname} {driver.firstname} \n"
+
         await bot.send_message(chat_id=message.from_user.id,
                                text=data,
                                reply_markup=inline_driver_management_kb())
@@ -281,9 +395,13 @@ async def link_car_to_driver_end(message: types.Message, state: FSMContext):
                            state=ProfileDriverManagementGroup.driver)
 async def del_driver(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text('Переходим к удалению водителей')
+    drivers = CompanyRepository.getDriversByCompany(companyId="5123")
+    initials = []
+    for driver in drivers:
+        initials.append(f"{driver.id} {driver.lastname} {driver.firstname}")
     await bot.send_message(chat_id=callback.message.chat.id,
                            text="Вот список водителей",
-                           reply_markup=get_drivers_kb(list_drivers))
+                           reply_markup=get_drivers_kb(initials))
     await ProfileDriverManagementGroup.del_driver_complete.set()
 
 
@@ -292,15 +410,22 @@ async def del_driver_complete(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['delete_driver'] = message.text
     await state.finish()
-    c_id = dict_managers["company_id"][dict_managers["lastname"].index(f'{dict_login_manager["lastname"]}')]
+
+    id = data['delete_driver'].split(" ")[0]
+    driver = UserRepository.deleteDriver(id)
+    if driver.id == None:
+        await bot.send_message(chat_id=message.from_user.id,
+                               text=f"Удаление {message.text} невозможно, пока водитель находится в поездке")
+    else:
+        await bot.send_message(chat_id=message.from_user.id,
+                               text=f"Вы успешно удалили {message.text}")
+    drivers = CompanyRepository.getDriversByCompany(companyId="5123")
+
+    data = f"Все водители в компании:\n"
+    for driver in drivers:
+        data += f"{driver.id} {driver.lastname} {driver.firstname} \n"
     await bot.send_message(chat_id=message.from_user.id,
-                           text=f"Вы успешно удалили {message.text}")
-    datas = f"Все водители в компании:\n"
-    for i in range(len(dict_drivers["lastname"])):
-        if dict_drivers['company_id'][i] == c_id:
-            datas += f"{dict_drivers['firstname'][i]} {dict_drivers['lastname'][i]}\n"
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=datas,
+                           text=data,
                            reply_markup=inline_driver_management_kb())
     await ProfileDriverManagementGroup.driver.set()
 
@@ -329,19 +454,6 @@ async def add_surname_driver(message: types.Message, state: FSMContext):
                            text="Введи название комании к которой будет привязан водитель")
     await ProfileDriverManagementGroup.add_driver_company.set()
 
-
-# @dp.message_handler(lambda message: message.text == "Зарегистрировать новую компанию")
-# async def reg_company(message: types.Message) -> None:
-#     await bot.send_message(chat_id=message.from_user.id,
-#                            text='Введите название компании')
-#     await ProfileCompanyStatesGroup.company_reg_name.set()
-
-# @dp.message_handler(state=ProfileCompanyStatesGroup.company_reg_name)
-# async def state_company_reg_name(message: types.Message, state: FSMContext):
-#     list_company.append(message.text)
-#     await bot.send_message(chat_id=message.from_user.id,
-#                            text=f'Ты зарегистрировал компанию {message.text}')
-#     await state.finish()
 
 @dp.message_handler(state=ProfileManagerLoginStatesGroup.manager_login_name)
 async def state_manager_login_name(message: types.Message, state: FSMContext):
@@ -387,22 +499,17 @@ async def state_manager_reg_name(message: types.Message, state: FSMContext):
 async def state_manager_req_surname(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['lastname'] = message.text
+        manager: Manager = Manager(message.from_user.id, data['firstname'], data['lastname'])
+        add_manager = UserRepository.addManager(manager)
+
     dict_managers['firstname'].append(data['firstname']), dict_managers['lastname'].append(data['lastname'])
-    print(dict_managers)
+    print(add_manager)
     await state.finish()
     await bot.send_message(chat_id=message.from_user.id,
                            text="Ты успешно зарегестрировался")
     await bot.send_message(chat_id=message.from_user.id,
                            text="Добро пожаловать в личный кабинет!",
                            reply_markup=lk_manager_kb())
-    await ProfileMenuGroup.menu_state.set()
-    # if len(list_company) == 0:
-    #     await bot.send_message(chat_id=message.from_user.id, text="Ни одной компании ещё не зарегистрировано",
-    #                            reply_markup=get_company_kb(company=list_company))
-    # else:
-    #     await bot.send_message(chat_id=message.from_user.id,
-    #                            text="Выбери зарегистрированную компанию или зарегистрируй свою",
-    #                            reply_markup=get_company_kb(company=list_company))
 
 
 def proverka_dostupa(dictionary: dict) -> bool:
