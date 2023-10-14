@@ -1,14 +1,14 @@
+import config
 from config import TOKEN_API
 from aiogram import Dispatcher, Bot, types, executor
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, InputFile, WebAppInfo
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from keyboards import get_start_kb, get_company_kb, lk_manager_kb, inline_driver_management_kb, get_drivers_kb, \
+from keyboards import get_start_kb, get_company_kb, lk_manager_kb, inline_admin_management_kb, get_drivers_kb, \
     inline_company_management_kb, inline_vehicle_control_kb
 from aiogram.dispatcher import FSMContext
-from model.Manager import Manager
-from repository import CompanyRepository, UserRepository
+
 
 storage = MemoryStorage()
 
@@ -42,212 +42,73 @@ class ProfileMenuGroup(StatesGroup):
     menu_back = State()
 
 
-class ProfileDriverManagementGroup(StatesGroup):
-    driver = State()
-    show_driver = State()
-    add_driver_name = State()
-    add_driver_surname = State()
-    add_driver_company = State()
-    del_driver = State()
-    del_driver_complete = State()
-    link_car_to_driver = State()
-    link_car_to_driver_driver = State()
-    show_driver_on_road = State()
+class ProfileCreateMeroStatesGroup(StatesGroup):
+    admin = State()
+    add_mero_name = State()
+    add_mero_databegin = State()
+    add_mero_dataEnd = State()
+    add_mero_deadline = State()
+    add_mero_place = State()
+    add_mero_sitelink = State()
+
+
+class ProfileCreateCompetStatesGroup(StatesGroup):
+    admin = State()
+    add_compet_name = State()
+    add_compet_databegin = State()
+    add_compet_dataEnd = State()
+    add_compet_deadline = State()
+    add_compet_place = State()
+    add_compet_sitelink = State()
+    add_compet_value = State()
 
 
 class ProfileManagerLoginStatesGroup(StatesGroup):
     manager_login_name = State()
     manager_login_surname = State()
+    manager_login_patronymic = State()
+    manager_login_id = State()
 
 
 class ProfileManagerStatesGroup(StatesGroup):
     manager_reg_name = State()
     manager_reg_surname = State()
+    manager_reg_patronymic = State()
+    manager_reg_id = State()
 
 
-class ProfileCompanyStatesGroup(StatesGroup):
-    company_reg_name = State()
-    change_company = State()
-    company = State()
-
-
-class ProfileVehicleControlStatesGroup(StatesGroup):
-    vehicle = State()
-    add_vehicle_gos = State()
-    add_vehicle_mark = State()
-    add_vehicle_model = State()
-    del_vehicle = State()
-    link_veh = State()
-    back_veh = State()
-
-
-@dp.message_handler(lambda message: message.text == "Управление компанией", state=ProfileMenuGroup.menu_state)
-async def company_management(message: types.Message, state: FSMContext):
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=f"Твоя компания: (тут должна быть компания менеджера)",
-                           reply_markup=inline_company_management_kb())
-    await state.finish()
-    await ProfileCompanyStatesGroup.company.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "back_w",
-                           state=ProfileCompanyStatesGroup.company)
-async def back_w(callback: types.CallbackQuery, state: FSMContext):
-    await state.finish()
-    await callback.message.delete()
-    await callback.message.answer(text="Добро пожаловать в личный кабинет!",
-                                  reply_markup=lk_manager_kb())
-    await ProfileMenuGroup.menu_state.set()
-
-
-@dp.message_handler(lambda message: message.text == "Управление машинами", state=ProfileMenuGroup.menu_state)
-async def vehicle_control(message: types.Message, state: FSMContext):
-    k = f'Все машины:\n'
-    for i in range(len(dict_vehicle['name'])):
-        k += f'{dict_vehicle["name"][i]} : {dict_vehicle["state"][i]}\n'
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=k,
-                           reply_markup=inline_vehicle_control_kb())
-    await state.finish()
-    await ProfileVehicleControlStatesGroup.vehicle.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "back",
-                           state=ProfileVehicleControlStatesGroup.vehicle)
-async def back(callback: types.CallbackQuery, state: FSMContext):
-    await state.finish()
-    await callback.message.delete()
-    await callback.message.answer(text="Добро пожаловать в личный кабинет!",
-                                  reply_markup=lk_manager_kb())
-    await ProfileMenuGroup.menu_state.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "del_vehicle",
-                           state=ProfileVehicleControlStatesGroup.vehicle)
-async def veh_add(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(text="Введите гос номер машины")
-    await ProfileVehicleControlStatesGroup.del_vehicle.set()
-
-
-@dp.message_handler(state=ProfileVehicleControlStatesGroup.del_vehicle)
-async def veh_add_gos(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['del_number'] = message.text
-    # тут удаление
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Вы успешно удалили автомобиль")
-    k = f'Все машины:\n'
-    for i in range(len(dict_vehicle['name'])):
-        k += f'{dict_vehicle["name"][i]} : {dict_vehicle["state"][i]}\n'
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=k,
-                           reply_markup=inline_vehicle_control_kb())
-    await state.finish()
-    await ProfileVehicleControlStatesGroup.vehicle.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "add_vehicle",
-                           state=ProfileVehicleControlStatesGroup.vehicle)
-async def veh_add(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(text="Введите гос номер машины")
-    await ProfileVehicleControlStatesGroup.add_vehicle_gos.set()
-
-
-@dp.message_handler(state=ProfileVehicleControlStatesGroup.add_vehicle_gos)
-async def veh_add_gos(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['transportNumber'] = message.text
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Введите марку автомобиля")
-    await ProfileVehicleControlStatesGroup.add_vehicle_mark.set()
-
-
-@dp.message_handler(state=ProfileVehicleControlStatesGroup.add_vehicle_mark)
-async def veh_add_gos(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['mark'] = message.text
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Введите модель автомобиля")
-    await ProfileVehicleControlStatesGroup.add_vehicle_model.set()
-
-
-@dp.message_handler(state=ProfileVehicleControlStatesGroup.add_vehicle_model)
-async def veh_add_gos(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['model'] = message.text
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Вы успешно зарегестрировали автомобиль")
-    k = f'Все машины:\n'
-    for i in range(len(dict_vehicle['name'])):
-        k += f'{dict_vehicle["name"][i]} : {dict_vehicle["state"][i]}\n'
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=k,
-                           reply_markup=inline_vehicle_control_kb())
-    await state.finish()
-    await ProfileVehicleControlStatesGroup.vehicle.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "change_company",
-                           state=ProfileCompanyStatesGroup.company)
-async def change_company(callback: types.CallbackQuery):
-    await callback.message.delete()
-    await callback.message.answer(text="Выберите нужную команию",
-                                  reply_markup=get_drivers_kb(dict_company["name"]))
-    await ProfileCompanyStatesGroup.change_company.set()
-
-
-@dp.message_handler(state=ProfileCompanyStatesGroup.change_company)
-async def change_company_last(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["company_id"] = message.text
-    await bot.send_message(chat_id=message.from_user.id,
-                           text='Вы успешно выбрали компанию')
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=f"Твоя компания: (тут должна быть компания менеджера)",
-                           reply_markup=inline_company_management_kb())
-    await state.finish()
-    await ProfileCompanyStatesGroup.company.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "reg_company",
-                           state=ProfileCompanyStatesGroup.company)
-async def reg_company(callback: types.CallbackQuery):
-    await callback.message.edit_text(text="Введите название компании")
-    await ProfileCompanyStatesGroup.company_reg_name.set()
-
-
-@dp.message_handler(state=ProfileCompanyStatesGroup.company_reg_name)
-async def reg_company_name(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["company_name"] = message.text
-    await bot.send_message(chat_id=message.from_user.id,
-                           text='Вы успешно зарегестрировали компанию')
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=f"Твоя компания: (тут должна быть компания менеджера)",
-                           reply_markup=inline_company_management_kb())
-    await state.finish()
-    await ProfileCompanyStatesGroup.company.set()
-
-
-@dp.message_handler(lambda message: message.text == 'Обратная связь', state=ProfileMenuGroup.menu_state)
-async def feedback(message: types.Message) -> None:
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=f"""CEO проекта - @macgoodmonsta \nРазработчик - @qecal \nРазработчик - @Qw_wi \nРазработчик - @smnv_vs \nРазработчик - @ml_nastya""",
-                           reply_markup=ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
-                               KeyboardButton("Google Forms", web_app=WebAppInfo(
-                                   url='https://docs.google.com/forms/d/16nMg62qwL3OxZawuP54ZWljUUTwJ8Pq8L23AS8SxzGc/edit')),
-                               KeyboardButton("Меню")
-                           ))
-    await ProfileMenuGroup.menu_back.set()
-
-
-@dp.message_handler(lambda message: message.text == "Меню", state=ProfileMenuGroup.menu_back)
-async def menu_back(message: types.Message, state: FSMContext):
-    await state.finish()
-    await bot.send_message(chat_id=message.from_user.id
-                           , text="Добро пожаловать в личный кабинет!",
-                           reply_markup=lk_manager_kb())
-    await ProfileMenuGroup.menu_state.set()
+class ProfileMeroChoice(StatesGroup):
+    drones_competition_outside_choice = State()
+    soft_skills_competition_outside_choice = State()
+    it_competition_outside_choice = State()
+    radio_electronics_competition_outside_choice = State()
+    social_competition_outside_choice = State()
+    entertainment_competition_outside_choice = State()
+    no_category_competition_outside_choice = State()
+    # ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    drones_event_outside_choice = State()
+    soft_skills_event_outside_choice = State()
+    it_event_outside_choice = State()
+    radio_electronics_event_outside_choice = State()
+    social_event_outside_choice = State()
+    entertainment_event_outside_choice = State()
+    no_category_event_outside_choice = State()
+    # ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    drones_competition_inside_choice = State()
+    soft_skills_competition_inside_choice = State()
+    it_competition_inside_choice = State()
+    radio_electronics_competition_inside_choice = State()
+    social_competition_inside_choice = State()
+    entertainment_competition_inside_choice = State()
+    no_category_competition_inside_choice = State()
+    # ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    drones_event_inside_choice = State()
+    soft_skills_event_inside_choice = State()
+    it_event_inside_choice = State()
+    radio_electronics_event_inside_choice = State()
+    social_event_inside_choice = State()
+    entertainment_event_inside_choice = State()
+    no_category_event_inside_choice = State()
 
 
 @dp.message_handler(commands=['start'])
@@ -258,9 +119,9 @@ async def start_command(message: types.Message) -> None:
     await message.delete()
 
 
-@dp.message_handler(lambda message: message.text in ['Я менеджер!', 'Я водитель!'])
+@dp.message_handler(lambda message: message.text in ['Я администратор!', 'Я студент!'])
 async def driver_or_manager(message: types.Message) -> None:
-    if message.text == "Я менеджер!":
+    if message.text == "Я администратор!":
         await bot.send_message(chat_id=message.from_user.id,
                                text="Ты уже зарегистрирован?.",
                                reply_markup=ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
@@ -293,58 +154,83 @@ async def repetitive_reg(message: types.Message):
     await ProfileManagerStatesGroup.manager_reg_name.set()
 
 
+@dp.message_handler(state=ProfileManagerStatesGroup.manager_reg_name)
+async def state_manager_reg_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['firstname'] = message.text
+
+    await bot.send_message(chat_id=message.from_user.id, text='Теперь введи свою фамилию')
+    await ProfileManagerStatesGroup.manager_reg_surname.set()
+
+
+@dp.message_handler(lambda message: message.text == 'Обратная связь', state=ProfileMenuGroup.menu_state)
+async def feedback(message: types.Message) -> None:
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"""CEO проекта - @macgoodmonsta \nРазработчик - @qecal \nРазработчик - @Qw_wi \nРазработчик - @smnv_vs \nРазработчик - @ml_nastya""",
+                           reply_markup=ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
+                               KeyboardButton("Google Forms", web_app=WebAppInfo(
+                                   url='https://docs.google.com/forms/d/16nMg62qwL3OxZawuP54ZWljUUTwJ8Pq8L23AS8SxzGc/edit')),
+                               KeyboardButton("Меню")
+                           ))
+    await ProfileMenuGroup.menu_back.set()
+
+
+@dp.message_handler(state=ProfileManagerStatesGroup.manager_reg_surname)
+async def state_manager_req_surname(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['lastname'] = message.text
+
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введи отчество")
+    await ProfileManagerStatesGroup.manager_reg_patronymic.set()
+
+
+@dp.message_handler(state=ProfileManagerStatesGroup.manager_reg_patronymic)
+async def state_manager_req_surname(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['patronymic'] = message.text
+
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введи идентификационный номер")
+    await ProfileManagerStatesGroup.manager_reg_id.set()
+
+
+@dp.message_handler(state=ProfileManagerStatesGroup.manager_reg_id)
+async def state_manager_req_surname(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['id'] = message.text
+
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Ты успешно зарегистрировался")
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Добро пожаловать в личный кабинет!",
+                           reply_markup=lk_manager_kb())
+    await ProfileMenuGroup.menu_state.set()
+
+
 @dp.message_handler(state=ProfileMenuGroup.menu_state)
 async def driver_management(message: types.Message, state: FSMContext):
     await state.finish()
-    if message.text == "Управление водителями":
-        await bot.send_message(chat_id=message.from_user.id, text="Переходим к управлению водителями")
-        drivers = CompanyRepository.getDriversByCompany(companyId="5123")
-
-        data = f"Все водители в компании:\n"
-        for driver in drivers:
-            data += f"{driver.id} {driver.lastname} {driver.firstname} \n"
-
+    if message.text == "Управление мероприятиями":
         await bot.send_message(chat_id=message.from_user.id,
-                               text=data,
-                               reply_markup=inline_driver_management_kb())
-        await ProfileDriverManagementGroup.driver.set()
+                               text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                               reply_markup=inline_admin_management_kb())
+        await ProfileCreateMeroStatesGroup.admin.set()
 
 
-@dp.message_handler(state=ProfileDriverManagementGroup.add_driver_company)
-async def add_company_driver(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["company"] = message.text
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'coordination_mero',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def coordination_mero(callback: types.CallbackQuery, state: FSMContext):
     await state.finish()
-    c_id = dict_managers["company_id"][dict_managers["lastname"].index(f'{dict_login_manager["lastname"]}')]
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Ты успешно зарегистрировал водителя")
-    datas = f"Все водители в компании:\n"
-    for i in range(len(dict_drivers["lastname"])):
-        if dict_drivers['company_id'][i] == c_id:
-            datas += f"{dict_drivers['firstname'][i]} {dict_drivers['lastname'][i]}\n"
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=datas,
-                           reply_markup=inline_driver_management_kb())
+    await callback.message.edit_text(
+        text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+        reply_markup=inline_admin_management_kb())
     await state.finish()
-    await ProfileDriverManagementGroup.driver.set()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == 'show_driver_on_road',
-                           state=ProfileDriverManagementGroup.driver)
-async def link_car_to_driver(callback: types.CallbackQuery, state: FSMContext):
-    await state.finish()
-    k = f'Все водители в пути:\n'
-    for i in range(len(dict_drivers['firstname'])):
-        if dict_drivers['state'][i] == "В пути":
-            k += f'{dict_drivers["firstname"][i]} {dict_drivers["lastname"][i]}\n'
-    await callback.message.edit_text(text=k,
-                                     reply_markup=inline_driver_management_kb())
-    await state.finish()
-    await ProfileDriverManagementGroup.driver.set()
+    await ProfileCreateMeroStatesGroup.admin.set()
 
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back",
-                           state=ProfileDriverManagementGroup.driver)
+                           state=ProfileCreateMeroStatesGroup.admin)
 async def back(callback: types.CallbackQuery, state: FSMContext):
     await state.finish()
     await callback.message.delete()
@@ -353,124 +239,1571 @@ async def back(callback: types.CallbackQuery, state: FSMContext):
     await ProfileMenuGroup.menu_state.set()
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == 'link_car_to_driver',
-                           state=ProfileDriverManagementGroup.driver)
-async def link_car_to_driver_vehicle(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text('Переходим к привязке машин к водителям')
-    await bot.send_message(chat_id=callback.message.chat.id,
-                           text="Вот список машин",
-                           reply_markup=get_drivers_kb(list_vehicle))
-    await ProfileDriverManagementGroup.link_car_to_driver.set()
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'create_mero',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def create_mero(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Переходим к добавлению мероприятия, напишите его название")
+    await ProfileCreateMeroStatesGroup.add_mero_name.set()
 
 
-@dp.message_handler(state=ProfileDriverManagementGroup.link_car_to_driver)
-async def link_car_to_driver_driver(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["vehicle"] = message.text
-    await bot.send_message(chat_id=message.chat.id,
-                           text="Вот список людей",
-                           reply_markup=get_drivers_kb(list_drivers))
-    await ProfileDriverManagementGroup.link_car_to_driver_driver.set()
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'create_compete',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def create_compet(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Переходим к добавлению конкурса, напишите его название")
+    await ProfileCreateCompetStatesGroup.add_compet_name.set()
 
 
-@dp.message_handler(state=ProfileDriverManagementGroup.link_car_to_driver_driver)
-async def link_car_to_driver_end(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["driver"] = message.text
-    c_id = dict_managers["company_id"][dict_managers["lastname"].index(f'{dict_login_manager["lastname"]}')]
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Ты успешно привязал машину к водителю")
-    datas = f"Все водители в компании:\n"
-    for i in range(len(dict_drivers["lastname"])):
-        if dict_drivers['company_id'][i] == c_id:
-            datas += f"{dict_drivers['firstname'][i]} {dict_drivers['lastname'][i]}\n"
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=datas,
-                           reply_markup=inline_driver_management_kb())
-    await state.finish()
-    await ProfileDriverManagementGroup.driver.set()
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'look_mero',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def look_mero(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    await callback.message.answer(text="Выберите какое мероприятие нужно",
+                                  reply_markup=InlineKeyboardMarkup().add(
+                                      InlineKeyboardButton(text="Внутри ГУАП", callback_data="inside_suai"),
+                                      InlineKeyboardButton(text="Вне ГУАП", callback_data="outside_suai")))
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == 'del_driver',
-                           state=ProfileDriverManagementGroup.driver)
-async def del_driver(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text('Переходим к удалению водителей')
-    drivers = CompanyRepository.getDriversByCompany(companyId="5123")
-    initials = []
-    for driver in drivers:
-        initials.append(f"{driver.id} {driver.lastname} {driver.firstname}")
-    await bot.send_message(chat_id=callback.message.chat.id,
-                           text="Вот список водителей",
-                           reply_markup=get_drivers_kb(initials))
-    await ProfileDriverManagementGroup.del_driver_complete.set()
-
-
-@dp.message_handler(state=ProfileDriverManagementGroup.del_driver_complete)
-async def del_driver_complete(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['delete_driver'] = message.text
-    await state.finish()
-
-    id = data['delete_driver'].split(" ")[0]
-    driver = UserRepository.deleteDriver(id)
-    if driver.id == None:
-        await bot.send_message(chat_id=message.from_user.id,
-                               text=f"Удаление {message.text} невозможно, пока водитель находится в поездке")
+@dp.callback_query_handler(lambda callback_query: callback_query.data in ['inside_suai', "outside_suai"],
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def look_mero_2(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == "outside_suai":
+        await callback.message.edit_text(text="Фильтр мероприятий",
+                                         reply_markup=InlineKeyboardMarkup().add(
+                                             InlineKeyboardButton(text="Мероприятие", callback_data="event_outside"),
+                                             InlineKeyboardButton(text="Соревнование",
+                                                                  callback_data="competition_outside")))
     else:
-        await bot.send_message(chat_id=message.from_user.id,
-                               text=f"Вы успешно удалили {message.text}")
-    drivers = CompanyRepository.getDriversByCompany(companyId="5123")
+        await callback.message.edit_text(text="Фильтр мероприятий",
+                                         reply_markup=InlineKeyboardMarkup().add(
+                                             InlineKeyboardButton(text="Мероприятие", callback_data="event_inside"),
+                                             InlineKeyboardButton(text="Соревнование",
+                                                                  callback_data="competition_inside")
+                                         ))
 
-    data = f"Все водители в компании:\n"
-    for driver in drivers:
-        data += f"{driver.id} {driver.lastname} {driver.firstname} \n"
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Категории мероприятий",
+                                     reply_markup=InlineKeyboardMarkup().add(
+                                         InlineKeyboardButton(text="Беспилотники",
+                                                              callback_data="drones_competition_outside"),
+                                         InlineKeyboardButton(text="Soft Skills",
+                                                              callback_data="soft_skills_competition_outside"),
+                                         InlineKeyboardButton(text="IT/Программирование",
+                                                              callback_data="it_competition_outside"),
+                                         InlineKeyboardButton(text="Радиоэлектроника",
+                                                              callback_data="radio_electronics_competition_outside"),
+                                         InlineKeyboardButton(text="Социальные",
+                                                              callback_data="social_competition_outside"),
+                                         InlineKeyboardButton(text="Развлекательные",
+                                                              callback_data="entertainment_competition_outside"),
+                                         InlineKeyboardButton(text="Без категориии",
+                                                              callback_data="no_category_competition_outside")
+                                     ))
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Категории мероприятий",
+                                     reply_markup=InlineKeyboardMarkup().add(
+                                         InlineKeyboardButton(text="Беспилотники",
+                                                              callback_data="drones_event_outside"),
+                                         InlineKeyboardButton(text="Soft Skills",
+                                                              callback_data="soft_skills_event_outside"),
+                                         InlineKeyboardButton(text="IT/Программирование",
+                                                              callback_data="it_event_outside"),
+                                         InlineKeyboardButton(text="Радиоэлектроника",
+                                                              callback_data="radio_electronics_event_outside"),
+                                         InlineKeyboardButton(text="Социальные",
+                                                              callback_data="social_event_outside"),
+                                         InlineKeyboardButton(text="Развлекательные",
+                                                              callback_data="entertainment_event_outside"),
+                                         InlineKeyboardButton(text="Без категориии",
+                                                              callback_data="no_category_event_outside")
+                                     ))
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Категории мероприятий",
+                                     reply_markup=InlineKeyboardMarkup().add(
+                                         InlineKeyboardButton(text="Беспилотники",
+                                                              callback_data="drones_competition_inside"),
+                                         InlineKeyboardButton(text="Soft Skills",
+                                                              callback_data="soft_skills_competition_inside"),
+                                         InlineKeyboardButton(text="IT/Программирование",
+                                                              callback_data="it_competition_inside"),
+                                         InlineKeyboardButton(text="Радиоэлектроника",
+                                                              callback_data="radio_electronics_competition_inside"),
+                                         InlineKeyboardButton(text="Социальные",
+                                                              callback_data="social_competition_inside"),
+                                         InlineKeyboardButton(text="Развлекательные",
+                                                              callback_data="entertainment_competition_inside"),
+                                         InlineKeyboardButton(text="Без категориии",
+                                                              callback_data="no_category_competition_inside")
+                                     ))
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def conference_outside(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Категории мероприятий",
+                                     reply_markup=InlineKeyboardMarkup().add(
+                                         InlineKeyboardButton(text="Беспилотники",
+                                                              callback_data="drones_event_inside"),
+                                         InlineKeyboardButton(text="Soft Skills",
+                                                              callback_data="soft_skills_event_inside"),
+                                         InlineKeyboardButton(text="IT/Программирование",
+                                                              callback_data="it_event_inside"),
+                                         InlineKeyboardButton(text="Радиоэлектроника",
+                                                              callback_data="radio_electronics_event_inside"),
+                                         InlineKeyboardButton(text="Социальные",
+                                                              callback_data="social_event_inside"),
+                                         InlineKeyboardButton(text="Развлекательные",
+                                                              callback_data="entertainment_event_inside"),
+                                         InlineKeyboardButton(text="Без категориии",
+                                                              callback_data="no_category_event_inside")
+                                     ))
+
+
+# ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'drones_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.drones_event_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'soft_skills_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.soft_skills_event_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'it_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.it_event_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'radio_electronics_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.radio_electronics_event_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'social_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.social_event_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'entertainment_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.entertainment_event_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'no_category_event_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.no_category_event_inside_choice.set()
+
+
+# ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'drones_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.drones_competition_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'soft_skills_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.soft_skills_competition_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'it_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.it_competition_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'radio_electronics_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.radio_electronics_competition_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'social_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await (ProfileMeroChoice.social_competition_inside_choice.set())
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'entertainment_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.entertainment_competition_inside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'no_category_competition_inside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.no_category_competition_inside_choice.set()
+
+
+# ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'drones_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.drones_competition_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'soft_skills_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.soft_skills_competition_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'it_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.it_competition_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'radio_electronics_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await (ProfileMeroChoice.radio_electronics_competition_outside_choice.set())
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'social_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.social_competition_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'entertainment_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.entertainment_competition_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'no_category_competition_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.no_category_competition_outside_choice.set()
+
+
+# ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'drones_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.drones_event_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'soft_skills_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.soft_skills_event_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'it_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.it_event_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'radio_electronics_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.radio_electronics_event_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'social_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.social_event_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'entertainment_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.entertainment_event_outside_choice.set()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'no_category_event_outside',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def drones_forum_outside(callback: types.CallbackQuery, state: FSMContext):
+    data = ['qweq', 'qweew']  # список найденных мероприятий из бд
+    ttext = f'Найденные мероприятия:\n'
+    for i in range(len(data)):
+        ttext += f'{i}) {data[i]}'
+    await callback.message.answer(text="Выберите нужное мероприятия",
+                                  reply_markup=get_drivers_kb(data))
+    await ProfileMeroChoice.no_category_event_outside_choice.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.drones_competition_outside_choice)
+async def add_bd_1(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
     await bot.send_message(chat_id=message.from_user.id,
-                           text=data,
-                           reply_markup=inline_driver_management_kb())
-    await ProfileDriverManagementGroup.driver.set()
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="drones_competition_outside_choice_notify_about_event")))
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == 'add_driver',
-                           state=ProfileDriverManagementGroup.driver)
-async def add_driver(callback: types.CallbackQuery, state: FSMContext):
-    a = await callback.message.edit_text(text="Переходим к добавлению водителя, напишите его имя")
-    await ProfileDriverManagementGroup.add_driver_name.set()
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'drones_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.drones_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
 
 
-@dp.message_handler(state=ProfileDriverManagementGroup.add_driver_name)
+@dp.message_handler(state=ProfileMeroChoice.soft_skills_competition_outside_choice)
+async def add_bd_2(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="soft_skills_competition_outside_choice_notify_about_event")))
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'soft_skills_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.soft_skills_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+@dp.message_handler(state=ProfileMeroChoice.it_competition_outside_choice)
+async def add_bd_3(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="it_competition_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'it_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.it_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.radio_electronics_competition_outside_choice)
+async def add_bd_4(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="radio_electronics_competition_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'radio_electronics_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.radio_electronics_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.social_competition_outside_choice)
+async def add_bd_5(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="social_competition_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'social_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.social_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.entertainment_competition_outside_choice)
+async def add_bd_6(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="entertainment_competition_outside_choice_notify_about_event")))
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'entertainment_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.entertainment_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+@dp.message_handler(state=ProfileMeroChoice.no_category_competition_outside_choice)
+async def add_bd_7(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="no_category_competition_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'no_category_competition_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.no_category_competition_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.drones_event_outside_choice)
+async def add_bd_8(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="drones_event_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'drones_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.drones_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.soft_skills_event_outside_choice)
+async def add_bd_9(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="soft_skills_event_outside_choice_notify_about_event")))
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'soft_skills_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.soft_skills_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+@dp.message_handler(state=ProfileMeroChoice.it_event_outside_choice)
+async def add_bd_10(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="it_event_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'it_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.it_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.radio_electronics_event_outside_choice)
+async def add_bd_11(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="radio_electronics_event_outside_choice_notify_about_event")))
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'radio_electronics_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.radio_electronics_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+@dp.message_handler(state=ProfileMeroChoice.social_event_outside_choice)
+async def add_bd_12(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="social_event_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'social_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.social_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.entertainment_event_outside_choice)
+async def add_bd_13(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="entertainment_event_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'entertainment_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.entertainment_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.no_category_event_outside_choice)
+async def add_bd_14(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("Уведомить о мероприятии",
+                                                                                        callback_data="no_category_event_outside_choice_notify_about_event")))
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'no_category_event_outside_choice_notify_about_event',
+    state=ProfileMeroChoice.no_category_event_outside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+@dp.message_handler(state=ProfileMeroChoice.drones_competition_inside_choice)
+async def add_bd_15(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='drones_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="drones_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'drones_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.drones_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'drones_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.drones_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.soft_skills_competition_inside_choice)
+async def add_bd_16(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['event'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='soft_skills_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="soft_skills_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'soft_skills_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.soft_skills_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'soft_skills_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.soft_skills_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.it_competition_inside_choice)
+async def add_bd_17(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='it_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="it_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'it_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.it_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...  # удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'it_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.it_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.radio_electronics_competition_inside_choice)
+async def add_bd_18(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='radio_electronics_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="radio_electronics_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'radio_electronics_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.radio_electronics_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'radio_electronics_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.radio_electronics_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.social_competition_inside_choice)
+async def add_bd_19(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='social_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="social_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'social_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.social_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'social_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.social_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.entertainment_competition_inside_choice)
+async def add_bd_20(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='entertainment_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="entertainment_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'entertainment_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.entertainment_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ... # удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'entertainment_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.entertainment_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.no_category_competition_inside_choice)
+async def add_bd_21(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='no_category_competition_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="no_category_competition_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'no_category_competition_inside_choice_cancel_event',
+    state=ProfileMeroChoice.no_category_competition_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'no_category_competition_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.no_category_competition_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.drones_event_inside_choice)
+async def add_bd_22(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='drones_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="drones_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'drones_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.drones_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'drones_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.drones_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.soft_skills_event_inside_choice)
+async def add_bd_23(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='soft_skills_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="soft_skills_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'soft_skills_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.soft_skills_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'soft_skills_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.soft_skills_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.it_event_inside_choice)
+async def add_bd_24(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='it_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="it_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'it_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.it_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'it_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.it_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.radio_electronics_event_inside_choice)
+async def add_bd_25(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='radio_electronics_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="radio_electronics_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'radio_electronics_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.radio_electronics_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'radio_electronics_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.radio_electronics_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.social_event_inside_choice)
+async def add_bd_26(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='social_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="social_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'social_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.social_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...  # удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'social_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.social_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.entertainment_event_inside_choice)
+async def add_bd_27(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='entertainment_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="entertainment_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'entertainment_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.entertainment_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'entertainment_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.entertainment_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileMeroChoice.no_category_event_inside_choice)
+async def add_bd_28(message: types.Message):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text=f"Вы выбрали: {message.text}",
+                           reply_markup=InlineKeyboardMarkup().add(
+                               InlineKeyboardButton("Отменить меропритие",
+                                                    callback_data='no_category_event_inside_choice_cancel_event'),
+                               InlineKeyboardButton("Уведомить о мероприятии",
+                                                    callback_data="no_category_event_inside_choice_notify_about_event")))
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'no_category_event_inside_choice_cancel_event',
+    state=ProfileMeroChoice.no_category_event_inside_choice)
+async def add_bd_14_cancel_event(callback: types.CallbackQuery, state: FSMContext):
+    async with state.proxy() as data:  # удаляем меро
+        ...# удаляем меро
+    await callback.message.answer(text="Вы успешно отменили мероприятие")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.callback_query_handler(
+    lambda callback_query: callback_query.data == 'no_category_event_inside_choice_notify_about_event',
+    state=ProfileMeroChoice.no_category_event_inside_choice)
+async def add_bd_14_notify_about_event(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(text="Пожалуйста подождите")
+    async with state.proxy() as data:
+        mero = data['event']  # название мероприятия
+        list_id = ['6479804715']  # тут должны быть id студентов по мероприятию
+        for i in range(len(list_id)):
+            await bot.send_message(chat_id=list_id[i],
+                                   text=f'Не забудьте посетить это мероприятие: {data["event"]}')
+    await callback.message.answer(
+        text="Вы отправили уведомление всем студентам которые зарегистрировались на мероприятие.")
+    await callback.message.answer(text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                                  reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == 'create_compete',
+                           state=ProfileCreateMeroStatesGroup.admin)
+async def create_compet(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text="Переходим к добавлению конкурса, напишите его название")
+    await ProfileCreateCompetStatesGroup.add_compet_name.set()
+
+
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_name)
 async def add_name_driver(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["firstname"] = message.text
+        data["title"] = message.text
     await bot.send_message(chat_id=message.from_user.id,
-                           text='Теперь введи фамилию')
-    await ProfileDriverManagementGroup.add_driver_surname.set()
+                           text='Введите дату начала в формате xx.xx.xxxx ')
+    await ProfileCreateCompetStatesGroup.add_compet_databegin.set()
 
 
-@dp.message_handler(state=ProfileDriverManagementGroup.add_driver_surname)
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_databegin)
 async def add_surname_driver(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data["lastname"] = message.text
+        data["databegin"] = message.text
     await bot.send_message(chat_id=message.from_user.id,
-                           text="Введи название комании к которой будет привязан водитель")
-    await ProfileDriverManagementGroup.add_driver_company.set()
+                           text="Введите дату конца конкурса в формате xx.xx.xxxx")
+    await ProfileCreateCompetStatesGroup.add_compet_dataEnd.set()
+
+
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_dataEnd)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["dataend"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите дату конца приёма документов в формате xx.xx.xxxx")
+    await ProfileCreateCompetStatesGroup.add_compet_deadline.set()
+
+
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_deadline)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["datadeadline"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите срок реализации, если не предусмотрен пишите '-'")
+    await ProfileCreateCompetStatesGroup.add_compet_place.set()
+
+
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_place)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["place"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите сумму вознаграждени, если нет то '-'")
+    await ProfileCreateCompetStatesGroup.add_compet_value.set()
+
+
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_value)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["value"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите ссылку на конкурс")
+    await ProfileCreateCompetStatesGroup.add_compet_sitelink.set()
+
+
+@dp.message_handler(state=ProfileCreateCompetStatesGroup.add_compet_sitelink)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["sitelink"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Вы успешно зарегистрировали мероприятие!")
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                           reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
+
+
+@dp.message_handler(state=ProfileCreateMeroStatesGroup.add_mero_name)
+async def add_name_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["title"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text='Введите дату начала в формате xx.xx.xxxx ')
+    await ProfileCreateMeroStatesGroup.add_mero_databegin.set()
+
+
+@dp.message_handler(state=ProfileCreateMeroStatesGroup.add_mero_databegin)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["databegin"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите дату конца мероприятия в формате xx.xx.xxxx")
+    await ProfileCreateMeroStatesGroup.add_mero_dataEnd.set()
+
+
+@dp.message_handler(state=ProfileCreateMeroStatesGroup.add_mero_dataEnd)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["dataend"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите дату конца приёма документов в формате xx.xx.xxxx")
+    await ProfileCreateMeroStatesGroup.add_mero_deadline.set()
+
+
+@dp.message_handler(state=ProfileCreateMeroStatesGroup.add_mero_deadline)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["datadeadline"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите место проведения мероприятия в формате 'Город,Страна'")
+    await ProfileCreateMeroStatesGroup.add_mero_place.set()
+
+
+@dp.message_handler(state=ProfileCreateMeroStatesGroup.add_mero_place)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["place"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Введите ссылку на мероприятие")
+    await ProfileCreateMeroStatesGroup.add_mero_sitelink.set()
+
+
+@dp.message_handler(state=ProfileCreateMeroStatesGroup.add_mero_sitelink)
+async def add_surname_driver(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["sitelink"] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Вы успешно зарегистрировали мероприятие!")
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Используя кнопки под этим сообщением можно управлять мероприятиями",
+                           reply_markup=inline_admin_management_kb())
+    await ProfileCreateMeroStatesGroup.admin.set()
 
 
 @dp.message_handler(state=ProfileManagerLoginStatesGroup.manager_login_name)
 async def state_manager_login_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data['firstname'] = message.text
+        data['name'] = message.text
     await bot.send_message(chat_id=message.from_user.id,
                            text="Теперь введи фамилию")
-    await ProfileManagerLoginStatesGroup.next()
+    await ProfileManagerLoginStatesGroup.manager_login_surname.set()
 
 
 @dp.message_handler(state=ProfileManagerLoginStatesGroup.manager_login_surname)
-async def state_manager_login_surname(message: types.Message, state: FSMContext):
-    global dict_login_manager
+async def state_manager_login_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['lastname'] = message.text
-    dict_login_manager = data
-    if proverka_dostupa(data):
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Теперь введи отчество")
+    await ProfileManagerLoginStatesGroup.manager_login_patronymic.set()
+
+
+@dp.message_handler(state=ProfileManagerLoginStatesGroup.manager_login_patronymic)
+async def state_manager_login_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['patronymic'] = message.text
+    await bot.send_message(chat_id=message.from_user.id,
+                           text="Теперь введи идентификационный номер")
+    await ProfileManagerLoginStatesGroup.manager_login_id.set()
+
+
+@dp.message_handler(state=ProfileManagerLoginStatesGroup.manager_login_id)
+async def state_manager_login_id(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['id'] = message.text
+    if data["id"] == config.ID:  # тут должно быть сравнение с записанными в бд данными админа
         await bot.send_message(chat_id=message.from_user.id,
                                text="Отлично, я помню тебя!")
         await bot.send_message(chat_id=message.from_user.id,
@@ -486,39 +1819,13 @@ async def state_manager_login_surname(message: types.Message, state: FSMContext)
         await state.finish()
 
 
-@dp.message_handler(state=ProfileManagerStatesGroup.manager_reg_name)
-async def state_manager_reg_name(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['firstname'] = message.text
-
-    await bot.send_message(chat_id=message.from_user.id, text='Теперь введи свою фамилию')
-    await ProfileManagerStatesGroup.next()
-
-
-@dp.message_handler(state=ProfileManagerStatesGroup.manager_reg_surname)
-async def state_manager_req_surname(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['lastname'] = message.text
-        manager: Manager = Manager(message.from_user.id, data['firstname'], data['lastname'])
-        add_manager = UserRepository.addManager(manager)
-
-    dict_managers['firstname'].append(data['firstname']), dict_managers['lastname'].append(data['lastname'])
-    print(add_manager)
+@dp.message_handler(lambda message: message.text == "Меню", state=ProfileMenuGroup.menu_back)
+async def menu_back(message: types.Message, state: FSMContext):
     await state.finish()
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Ты успешно зарегестрировался")
-    await bot.send_message(chat_id=message.from_user.id,
-                           text="Добро пожаловать в личный кабинет!",
+    await bot.send_message(chat_id=message.from_user.id
+                           , text="Добро пожаловать в личный кабинет!",
                            reply_markup=lk_manager_kb())
-
-
-def proverka_dostupa(dictionary: dict) -> bool:
-    if dictionary['firstname'] in dict_managers['firstname'] and dictionary['lastname'] in dict_managers['lastname'] and \
-            dict_managers['firstname'].index(dictionary['firstname']) == dict_managers['lastname'].index(
-        dictionary['lastname']):
-        return True
-    else:
-        return False
+    await ProfileMenuGroup.menu_state.set()
 
 
 def startup():

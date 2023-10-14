@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
 
 def get_start_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    kb.add(KeyboardButton(text="Я менеджер!"), KeyboardButton(text="Я водитель!"))
+    kb.add(KeyboardButton(text="Я администратор!"), KeyboardButton(text="Я студент!"))
     return kb
 
 
@@ -25,18 +25,17 @@ def get_drivers_kb(company: list) -> ReplyKeyboardMarkup:
 
 def lk_manager_kb() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    kb.add(KeyboardButton("Управление водителями"), KeyboardButton("Управление путями"))
-    kb.add(KeyboardButton("Управление компанией"), KeyboardButton("Управление машинами"))
+    kb.add(KeyboardButton("Управление мероприятиями"))
     kb.add(KeyboardButton("Обратная связь"))
     return kb
 
 
-def inline_driver_management_kb() -> InlineKeyboardMarkup:
+def inline_admin_management_kb() -> InlineKeyboardMarkup:
     kb = InlineKeyboardMarkup(row_width=3)
-    kb.add(InlineKeyboardButton("Добавить водителя", callback_data='add_driver'),
-           InlineKeyboardButton(text="Удалить водителя", callback_data="del_driver"))
-    kb.add(InlineKeyboardButton(text="Привязать машину к водителю", callback_data='link_car_to_driver'))
-    kb.add(InlineKeyboardButton(text="Показать водителей в пути", callback_data="show_driver_on_road"))
+    kb.add(InlineKeyboardButton("Создать мероприятие", callback_data='create_mero'),
+           InlineKeyboardButton(text="Посмотреть мероприятия", callback_data="look_mero"))
+    kb.add(InlineKeyboardButton(text="Создать конкурс", callback_data='create_compete'))
+    kb.add(InlineKeyboardButton(text="Согласование мероприятий", callback_data='coordination_mero'))
     kb.add(InlineKeyboardButton(text="Назад в меню", callback_data="back"))
     return kb
 
