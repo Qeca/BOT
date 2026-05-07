@@ -1,2 +1,7 @@
-TOKEN_API = "6409508709:AAFgvUU6NiRG49Wjzg1Nq1C59_x8lDWT-ao"
-ID = '151023'
+import os
+
+TOKEN_API = os.getenv("TOKEN_API", "")
+ID = os.getenv("ADMIN_ID", "")
+
+if not TOKEN_API:
+    raise RuntimeError("Set TOKEN_API environment variable before starting the bot.")
